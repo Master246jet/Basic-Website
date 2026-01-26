@@ -1,0 +1,136 @@
+PROFESSIONAL VACATION PLAN
+Duration: 26th Jan → 3rd February
+Goal: Exit vacation with 1 solid portfolio project + stronger JavaScript
+
+==================================================
+DAY 1 – PROJECT FOUNDATION & SETUP
+==================================================
+- Decide project scope:
+  - Campus Hub / Student Platform (Professional Version)
+- Define core features:
+  - Authentication (Login/Register)
+  - Roles (Admin / User)
+  - CRUD module (e.g. News / Services / Requests)
+- Create GitHub repository
+- Initialize project:
+  - Backend (PHP or Node.js)
+  - Database (MySQL)
+- Create basic README:
+  - Project description
+  - Tech stack
+- Revise:
+  - How HTTP requests work (GET, POST, PUT, DELETE)
+
+==================================================
+DAY 2 – DATABASE & BACKEND CORE
+==================================================
+- Design database schema:
+  - Users table (roles, hashed passwords)
+  - Main feature table (news/services/etc.)
+- Implement database connection
+- Create basic API endpoints:
+  - Register
+  - Login
+- Implement password hashing & verification
+- Test endpoints using Postman
+- JS Practice (30–45 min):
+  - async / await
+  - fetch() basics
+
+==================================================
+DAY 3 – AUTHENTICATION & SESSIONS
+==================================================
+- Implement authentication logic fully
+- Add session handling or JWT
+- Protect routes (only logged-in users)
+- Handle invalid login cases
+- JS Practice:
+  - Handling form submission
+  - Prevent default behavior
+- Commit changes with clear messages
+
+==================================================
+DAY 4 – FRONTEND + API CONNECTION
+==================================================
+- Build frontend login & register pages
+- Connect frontend to backend using fetch()
+- Display error/success messages
+- Store session/JWT on client side
+- JS Practice:
+  - DOM manipulation
+  - Reading API responses
+- Update README with screenshots
+
+==================================================
+DAY 5 – CORE FEATURE IMPLEMENTATION
+==================================================
+- Implement main feature CRUD:
+  - Create
+  - Read (with pagination)
+  - Update
+  - Delete
+- Role-based access:
+  - Admin can edit/delete
+  - User can view/create
+- JS Practice:
+  - Rendering lists dynamically
+  - Pagination logic
+
+==================================================
+DAY 6 – SECURITY & CLEANUP
+==================================================
+- Input validation (frontend + backend)
+- Prevent SQL Injection (prepared statements)
+- Handle HTTP status codes properly
+- Error handling improvements
+- Refactor messy code
+- JS Practice:
+  - try / catch
+  - handling failed fetch requests
+
+==================================================
+DAY 7 – POLISH & PROFESSIONAL TOUCH
+==================================================
+- Improve UI (basic but clean)
+- Add search or filtering
+- Improve folder structure
+- Add comments where logic is complex
+- Update README:
+  - Architecture explanation
+  - API endpoints list
+- Push final version to GitHub
+
+==================================================
+DAY 8 – DEPLOYMENT & DOCUMENTATION
+==================================================
+- Deploy project (if possible):
+  - Render / Railway / Shared hosting
+- Final testing (mobile + desktop)
+- Write short project summary:
+  - What problem it solves
+  - What you learned
+- Optional:
+  - Postman collection export
+
+==================================================
+DAY 9 – REVIEW & INTERVIEW PREP
+==================================================
+- Review your own project:
+  - Explain it out loud
+  - Walk through the code
+- Prepare answers for:
+  - How authentication works
+  - How frontend talks to backend
+  - Security decisions
+- Light JS revision
+- Clean GitHub profile:
+  - Pin project
+  - Final README check
+
+==================================================
+END GOAL (3rd FEB)
+==================================================
+- 1 complete, deployable project
+- Stronger JavaScript fundamentals
+- Confidence explaining backend logic
+- GitHub ready for internships / interviews

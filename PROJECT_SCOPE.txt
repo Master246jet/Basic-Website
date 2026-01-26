@@ -1,0 +1,19 @@
+CORE FEATURES:
+- User Registration
+- User Login
+- Role-based Access (Admin / Student)
+- Authentication using sessions or JWT
+- CRUD module (Campus News or Services)
+- Pagination for listings
+
+OPTIONAL FEATURES:
+- Search
+- Filtering
+- Deployment
+
+
+TECH STACK:
+- Backend: PHP (PDO)
+- Database: MySQL / MariaDB
+- Frontend: HTML, CSS, JavaScript
+- Auth: PHP Sessions
