@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Register</title>
+  <style>body{font-family:Arial,Helvetica,sans-serif;max-width:720px;margin:40px auto;padding:0 16px}form{display:grid;gap:8px}input,button,select{padding:8px;font-size:16px}</style>
+</head>
+<body>
+  <h1>Register</h1>
+  <form id="registerForm">
+    <label>Email<input type="email" name="email" required></label>
+    <label>Password<input type="password" name="password" minlength="8" required></label>
+    <label>Role
+      <select name="role">
+        <option value="student">User</option>
+        <option value="admin">Admin</option> <!-- Admin option for testing; in production, role assignment should be handled securely on the server -->
+      </select>
+    </label>
+    <button type="submit">Register</button>
+  </form>
+  <p id="msg"></p>
+  <p>Already have an account? <a href="/Basic-Website/campus-hub/frontend/login.html">Login</a></p>
+
+  <script>
+    const form = document.getElementById('registerForm');
+    const msg = document.getElementById('msg');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg.textContent = '';
+      const fd = new FormData(form);
+      const payload = Object.fromEntries(fd.entries());
+
+      try {
+        const res = await fetch('/Basic-Website/campus-hub/backend/auth/register.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          credentials: 'include'
+        });
+        const data = await res.json();
+        if (res.ok) {
+          msg.style.color = 'green';
+          msg.textContent = data.message || 'Registered';
+          setTimeout(() => window.location.href = '/Basic-Website/campus-hub/frontend/login.html', 900);
+        } else {
+          msg.style.color = 'crimson';
+          msg.textContent = data.message || 'Registration failed';
+        }
+      } catch (err) {
+        msg.style.color = 'crimson';
+        msg.textContent = 'Network error';
+      }
+    });
+  </script>
+</body>
+</html>

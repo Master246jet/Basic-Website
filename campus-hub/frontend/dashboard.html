@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dashboard</title>
+  <style>
+   body{font-family:Arial,Helvetica,sans-serif;max-width:900px;margin:24px auto;padding:0 16px}
+   button,
+   input,
+   textarea{padding:8px;font-size:14px}form{display:grid;gap:8px;margin-bottom:16px}
+   article{border:1px solid #ddd;padding:12px;margin-bottom:8px;border-radius:6px}
+  </style>
+</head>
+<body>
+  <h1>News Dashboard</h1>
+  <p><button id="logout">Logout</button></p>
+
+  <section>
+    <h2>Create News</h2>
+    <form id="createForm">
+      <input name="title" placeholder="Title" required />
+      <textarea name="content" placeholder="Content" rows="6" required></textarea>
+      <button type="submit">Publish</button>
+    </form>
+    <p id="createMsg"></p>
+  </section>
+
+  <section>
+    <h2>Latest News</h2>
+    <div id="list">Loading...</div> <!-- News list will be populated here -->
+  </section>
+
+  <script>
+    const listEl = document.getElementById('list');
+    const createForm = document.getElementById('createForm');
+    const createMsg = document.getElementById('createMsg');
+    const logoutBtn = document.getElementById('logout');
+
+    async function loadNews() {
+      listEl.textContent = 'Loading...';
+      try {
+        const res = await fetch('/Basic-Website/campus-hub/backend/api/news.php');
+        const data = await res.json();
+        if (!res.ok) {
+          listEl.textContent = data.message || 'Failed to load';
+          return;
+        }
+        if (!data.data || data.data.length === 0) {
+          listEl.textContent = 'No news yet.';
+          return;
+        }
+        listEl.innerHTML = '';
+        data.data.forEach(item => {
+          const art = document.createElement('article');
+          art.innerHTML = `<h3>${escapeHtml(item.title)}</h3><small>By ${escapeHtml(item.author_email)} — ${escapeHtml(item.created_at)}</small><p>${escapeHtml(item.content)}</p>`;
+          listEl.appendChild(art);
+        });
+      } catch (err) {
+        listEl.textContent = 'Network error';
+      }
+    }
+
+    createForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      createMsg.textContent = '';
+      const fd = new FormData(createForm);
+      const payload = Object.fromEntries(fd.entries());
+      try {
+        const res = await fetch('/Basic-Website/campus-hub/backend/api/news.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          credentials: 'include'
+        });
+        const data = await res.json();
+        if (res.ok) {
+          createMsg.style.color = 'green';
+          createMsg.textContent = data.message || 'Created';
+          createForm.reset();
+          loadNews();
+        } else {
+          createMsg.style.color = 'crimson';
+          createMsg.textContent = data.message || 'Failed';
+          if (res.status === 401) {
+            setTimeout(() => window.location.href = '/Basic-Website/campus-hub/frontend/login.html', 400);
+          }
+        }
+      } catch (err) {
+        createMsg.style.color = 'crimson';
+        createMsg.textContent = 'Network error';
+      }
+    });
+
+    logoutBtn.addEventListener('click', async () => {
+      try {
+        await fetch('/Basic-Website/campus-hub/backend/auth/logout.php', { method: 'POST', credentials: 'include' });
+      } catch (e) {}
+      window.location.href = '/Basic-Website/campus-hub/frontend/login.html';
+    });
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    loadNews();
+  </script>
+</body>
+</html>

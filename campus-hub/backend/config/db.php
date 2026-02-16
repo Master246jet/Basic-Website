@@ -2,7 +2,7 @@
 $host = 'localhost';
 $db = 'campus_news';
 $user = 'root';
-$password = ''; // or whatever your MySQL password is
+$password = ''; // or whatever the MySQL password is
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8mb4", $user, $password);
