@@ -37,13 +37,38 @@
     const createMsg = document.getElementById('createMsg');
     const logoutBtn = document.getElementById('logout');
 
+    // Check if user is authenticated (Route Protection)
+    async function checkAuth() {
+      try {
+        const res = await fetch('/Basic-Website/campus-hub/backend/auth/check.php', {
+          method: 'GET',
+          credentials: 'include' // Send cookies for session auth
+        });
+        const data = await res.json();
+        if (!res.ok || !data.authenticated) {
+          // User is not authenticated, redirect to login
+          window.location.href = '/Basic-Website/campus-hub/frontend/login.html';
+          return false;
+        }
+        return true;
+      } catch (err) {
+        // Error checking auth, redirect to login to be safe
+        window.location.href = '/Basic-Website/campus-hub/frontend/login.html';
+        return false;
+      }
+    }
+
     async function loadNews() {
       listEl.textContent = 'Loading...';
       try {
-        const res = await fetch('/Basic-Website/campus-hub/backend/api/news.php');
+        const res = await fetch('/Basic-Website/campus-hub/backend/api/news.php', {
+          method: 'GET',
+          credentials: 'include'  // ← Send session cookie
+        });
         const data = await res.json();
         if (!res.ok) {
           listEl.textContent = data.message || 'Failed to load';
+          console.error('Load news error:', data);
           return;
         }
         if (!data.data || data.data.length === 0) {
@@ -57,7 +82,8 @@
           listEl.appendChild(art);
         });
       } catch (err) {
-        listEl.textContent = 'Network error';
+        listEl.textContent = 'Network error: ' + err.message;
+        console.error('Network error:', err);
       }
     }
 
@@ -108,7 +134,13 @@
         .replace(/'/g, '&#39;');
     }
 
-    loadNews();
+    // On page load, check authentication then load news
+    (async () => {
+      if (await checkAuth()) {
+        loadNews();
+      }
+    })();
   </script>
+  <break></break>
 </body>
 </html>

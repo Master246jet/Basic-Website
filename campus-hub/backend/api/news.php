@@ -126,6 +126,10 @@ try {
 
 } catch (PDOException $e) {
 	error_log('News API error: ' . $e->getMessage());
-	respond(['success' => false, 'message' => 'Server error'], 500);
+	error_log('SQL State: ' . $e->getCode());
+	respond(['success' => false, 'message' => 'Database error: ' . $e->getMessage()], 500);
+} catch (Exception $e) {
+	error_log('News API generic error: ' . $e->getMessage());
+	respond(['success' => false, 'message' => 'Server error: ' . $e->getMessage()], 500);
 }
 

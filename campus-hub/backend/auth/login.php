@@ -39,9 +39,16 @@ try {
    $stmt->execute(['email' => $email]);
    $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-   if (!$user || !password_verify($password, $user['password_hash'])) {
+   // Invalid login - don't reveal if email exists or password is wrong (security best practice)
+   if (!$user) {
       http_response_code(401);
-      echo json_encode(['success' => false, 'message' => 'Invalid credentials']);
+      echo json_encode(['success' => false, 'message' => 'Invalid email or password']);
+      exit;
+   }
+
+   if (!password_verify($password, $user['password_hash'])) {
+      http_response_code(401);
+      echo json_encode(['success' => false, 'message' => 'Invalid email or password']);
       exit;
    }
 
