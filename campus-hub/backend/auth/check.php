@@ -13,6 +13,7 @@ if ($authenticated) {
         'success' => true,
         'authenticated' => true,
         'user_id' => $_SESSION['user_id'],
+        'user_email' => $_SESSION['email'] ?? null,
         'role' => $_SESSION['role'] ?? 'student'
     ]);
 } else {

@@ -72,7 +72,13 @@ try {
 
 	if ($method === 'PUT' || $method === 'PATCH') {
 		// Update news: require id in query
-		parse_str(file_get_contents('php://input'), $putVars);
+		$raw = file_get_contents('php://input');
+		// support JSON bodies as well as form-encoded bodies
+		if (stripos($_SERVER['CONTENT_TYPE'] ?? '', 'application/json') !== false) {
+			$putVars = json_decode($raw, true) ?? [];
+		} else {
+			parse_str($raw, $putVars);
+		}
 		// Accept id from query or body
 		$id = isset($_GET['id']) ? (int)$_GET['id'] : (int)($putVars['id'] ?? 0);
 		if (!$id) respond(['success' => false, 'message' => 'ID required'], 400);
@@ -88,8 +94,8 @@ try {
 		}
 
 		// Get updated fields
-		$title = $putVars['title'] ?? null;
-		$content = $putVars['content'] ?? null;
+		$title = isset($putVars['title']) ? trim($putVars['title']) : null;
+		$content = isset($putVars['content']) ? trim($putVars['content']) : null;
 		if ($title === null && $content === null) respond(['success' => false, 'message' => 'Nothing to update'], 400);
 
 		$fields = [];

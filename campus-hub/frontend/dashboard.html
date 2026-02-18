@@ -1,27 +1,23 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <link rel="stylesheet" href="style.css">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Dashboard</title>
-  <style>
-   body{font-family:Arial,Helvetica,sans-serif;max-width:900px;margin:24px auto;padding:0 16px}
-   button,
-   input,
-   textarea{padding:8px;font-size:14px}form{display:grid;gap:8px;margin-bottom:16px}
-   article{border:1px solid #ddd;padding:12px;margin-bottom:8px;border-radius:6px}
-  </style>
 </head>
 <body>
   <h1>News Dashboard</h1>
-  <p><button id="logout">Logout</button></p>
-
+  <div id="userInfo" class="user-info"></div>
   <section>
     <h2>Create News</h2>
     <form id="createForm">
       <input name="title" placeholder="Title" required />
       <textarea name="content" placeholder="Content" rows="6" required></textarea>
-      <button type="submit">Publish</button>
+      <div style="display:flex;gap:8px">
+        <button type="submit">Publish</button>
+        <button type="button" id="cancelEdit" style="display:none">Cancel</button>
+      </div>
     </form>
     <p id="createMsg"></p>
   </section>
@@ -31,13 +27,28 @@
     <div id="list">Loading...</div> <!-- News list will be populated here -->
   </section>
 
+  <p><button id="logout" class="btn-primary">Logout</button></p>
+
   <script>
     const listEl = document.getElementById('list');
     const createForm = document.getElementById('createForm');
     const createMsg = document.getElementById('createMsg');
     const logoutBtn = document.getElementById('logout');
 
-    // Check if user is authenticated (Route Protection)
+    
+
+    // State
+    let currentUserId = null;
+    let editingNewsId = null;
+
+    // Show message under create form
+    function showMessage(msg, type = 'info') {
+      createMsg.style.color = type === 'success' ? 'green' : (type === 'error' ? 'crimson' : '#333');
+      createMsg.textContent = msg;
+    }
+
+    function clearMessage() { createMsg.textContent = ''; }
+
     async function checkAuth() {
       try {
         const res = await fetch('/Basic-Website/campus-hub/backend/auth/check.php', {
@@ -46,79 +57,149 @@
         });
         const data = await res.json();
         if (!res.ok || !data.authenticated) {
-          // User is not authenticated, redirect to login
           window.location.href = '/Basic-Website/campus-hub/frontend/login.html';
           return false;
         }
+        // Set current user info for UI
+        currentUserId = data.user_id || null;
+        const userInfoEl = document.getElementById('userInfo');
+        if (userInfoEl) {
+          userInfoEl.textContent = data.user_email ? `Logged in as ${data.user_email}` : '';
+        }
         return true;
       } catch (err) {
-        // Error checking auth, redirect to login to be safe
         window.location.href = '/Basic-Website/campus-hub/frontend/login.html';
         return false;
       }
     }
 
     async function loadNews() {
-      listEl.textContent = 'Loading...';
+      listEl.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading news...</p></div>';
       try {
         const res = await fetch('/Basic-Website/campus-hub/backend/api/news.php', {
           method: 'GET',
-          credentials: 'include'  // ← Send session cookie
+          credentials: 'include'
         });
-        const data = await res.json();
+        const payload = await res.json();
         if (!res.ok) {
-          listEl.textContent = data.message || 'Failed to load';
-          console.error('Load news error:', data);
+          listEl.textContent = payload.message || 'Failed to load';
+          console.error('Load news error:', payload);
           return;
         }
-        if (!data.data || data.data.length === 0) {
-          listEl.textContent = 'No news yet.';
-          return;
-        }
-        listEl.innerHTML = '';
-        data.data.forEach(item => {
-          const art = document.createElement('article');
-          art.innerHTML = `<h3>${escapeHtml(item.title)}</h3><small>By ${escapeHtml(item.author_email)} — ${escapeHtml(item.created_at)}</small><p>${escapeHtml(item.content)}</p>`;
-          listEl.appendChild(art);
-        });
+        displayNews(payload.data || []);
       } catch (err) {
         listEl.textContent = 'Network error: ' + err.message;
         console.error('Network error:', err);
       }
     }
 
+    function displayNews(items) {
+      if (!items || items.length === 0) {
+        listEl.innerHTML = '<p class="loading">No news yet.</p>';
+        return;
+      }
+      listEl.innerHTML = '';
+      items.forEach(item => {
+        const art = document.createElement('article');
+        let actions = '';
+        if (currentUserId && Number(item.author_id) === Number(currentUserId)) {
+          actions = `<div class="article-actions"><button class="btn-secondary" data-id="${item.id}" data-action="edit">Edit</button><button class="btn-danger" data-id="${item.id}" data-action="delete">Delete</button></div>`;
+        }
+        art.innerHTML = `<h3>${escapeHtml(item.title)}</h3><small>By ${escapeHtml(item.author_email)} — ${escapeHtml(item.created_at)}</small><p>${escapeHtml(item.content)}</p>${actions}`;
+        listEl.appendChild(art);
+      });
+
+      // Attach action handlers
+      listEl.querySelectorAll('button[data-action="edit"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-id');
+          const article = btn.closest('article');
+          const title = article.querySelector('h3').textContent;
+          const content = article.querySelector('p').textContent;
+          editNews(id, title, content);
+        });
+      });
+      listEl.querySelectorAll('button[data-action="delete"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-id');
+          deleteNews(id);
+        });
+      });
+    }
+
+    async function deleteNews(id) {
+      if (!confirm('Delete this news?')) return;
+      try {
+        const res = await fetch('/Basic-Website/campus-hub/backend/api/news.php?id=' + encodeURIComponent(id), {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showMessage('Deleted', 'success');
+          loadNews();
+        } else {
+          showMessage(data.message || 'Delete failed', 'error');
+        }
+      } catch (err) {
+        showMessage('Network error: ' + err.message, 'error');
+      }
+    }
+
+    function editNews(id, title, content) {
+      editingNewsId = id;
+      createForm.title.value = title;
+      createForm.content.value = content;
+      document.getElementById('cancelEdit').style.display = 'inline-block';
+      createForm.querySelector('button[type="submit"]').textContent = 'Update';
+    }
+
+    function cancelEdit() {
+      editingNewsId = null;
+      createForm.reset();
+      document.getElementById('cancelEdit').style.display = 'none';
+      createForm.querySelector('button[type="submit"]').textContent = 'Publish';
+      clearMessage();
+    }
+
+    document.getElementById('cancelEdit').addEventListener('click', cancelEdit);
+
     createForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      createMsg.textContent = '';
+      clearMessage();
       const fd = new FormData(createForm);
       const payload = Object.fromEntries(fd.entries());
       try {
-        const res = await fetch('/Basic-Website/campus-hub/backend/api/news.php', {
-          method: 'POST',
+        let url = '/Basic-Website/campus-hub/backend/api/news.php';
+        let method = 'POST';
+        if (editingNewsId) {
+          url += '?id=' + encodeURIComponent(editingNewsId);
+          method = 'PUT';
+        }
+        const res = await fetch(url, {
+          method,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
           credentials: 'include'
         });
         const data = await res.json();
         if (res.ok) {
-          createMsg.style.color = 'green';
-          createMsg.textContent = data.message || 'Created';
+          showMessage(data.message || (editingNewsId ? 'Updated' : 'Created'), 'success');
           createForm.reset();
+          cancelEdit();
           loadNews();
         } else {
-          createMsg.style.color = 'crimson';
-          createMsg.textContent = data.message || 'Failed';
+          showMessage(data.message || 'Failed', 'error');
           if (res.status === 401) {
             setTimeout(() => window.location.href = '/Basic-Website/campus-hub/frontend/login.html', 400);
           }
         }
       } catch (err) {
-        createMsg.style.color = 'crimson';
-        createMsg.textContent = 'Network error';
+        showMessage('Network error', 'error');
       }
     });
 
-    logoutBtn.addEventListener('click', async () => {
+    logoutBtn.addEventListener('click', async () => { 
       try {
         await fetch('/Basic-Website/campus-hub/backend/auth/logout.php', { method: 'POST', credentials: 'include' });
       } catch (e) {}
@@ -141,6 +222,5 @@
       }
     })();
   </script>
-  <break></break>
 </body>
 </html>

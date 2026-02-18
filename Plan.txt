@@ -55,7 +55,7 @@ DAY 4 – FRONTEND + API CONNECTION
 - Build frontend login & register pages
 - Connect frontend to backend using fetch()
 - Display error/success messages
-- Store session/JWT on client side
+- Store session/JWT on client side (cookies?)
 - JS Practice:
   - DOM manipulation
   - Reading API responses
