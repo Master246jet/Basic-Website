@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en">
+  <link rel="stylesheet" href="style.css">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -17,7 +18,7 @@
         <option value="admin">Admin</option> <!-- Admin option for testing; in production, role assignment should be handled securely on the server -->
       </select>
     </label>
-    <button type="submit">Register</button>
+    <button class="btn-primary" type="submit">Register</button>
   </form>
   <p id="msg"></p>
   <p>Already have an account? <a href="/Basic-Website/campus-hub/frontend/login.html">Login</a></p>
@@ -25,31 +26,89 @@
   <script>
     const form = document.getElementById('registerForm');
     const msg = document.getElementById('msg');
+    
+    // Input validation
+    function validateEmail(email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return emailRegex.test(email.trim());
+    }
+    
+    function validatePassword(password) {
+      return password && password.length >= 8;
+    }
+    
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       msg.textContent = '';
-      const fd = new FormData(form);
-      const payload = Object.fromEntries(fd.entries());
-
+      msg.style.color = '';
+      
       try {
+        const fd = new FormData(form);
+        const email = fd.get('email').trim();
+        const password = fd.get('password');
+        const role = fd.get('role');
+        
+        // Validate email
+        if (!email) {
+          msg.style.color = 'crimson';
+          msg.textContent = 'Email is required';
+          return;
+        }
+        
+        if (!validateEmail(email)) {
+          msg.style.color = 'crimson';
+          msg.textContent = 'Please enter a valid email address';
+          return;
+        }
+        
+        // Validate password
+        if (!password) {
+          msg.style.color = 'crimson';
+          msg.textContent = 'Password is required';
+          return;
+        }
+        
+        if (!validatePassword(password)) {
+          msg.style.color = 'crimson';
+          msg.textContent = 'Password must be at least 8 characters';
+          return;
+        }
+        
+        if (!role) {
+          msg.style.color = 'crimson';
+          msg.textContent = 'Please select a role';
+          return;
+        }
+        
+        const payload = { email, password, role };
+        
         const res = await fetch('/Basic-Website/campus-hub/backend/auth/register.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
           credentials: 'include'
         });
+        
         const data = await res.json();
+        
         if (res.ok) {
           msg.style.color = 'green';
-          msg.textContent = data.message || 'Registered';
-          setTimeout(() => window.location.href = '/Basic-Website/campus-hub/frontend/login.html', 900);
+          msg.textContent = 'Registration successful! Redirecting to login...';
+          setTimeout(() => window.location.href = '/Basic-Website/campus-hub/frontend/login.html', 1000);
+        } else if (res.status === 400) {
+          msg.style.color = 'crimson';
+          msg.textContent = data.message || 'Registration failed. Please check your input.';
+        } else if (res.status === 409) {
+          msg.style.color = 'crimson';
+          msg.textContent = 'This email is already registered. Please login instead.';
         } else {
           msg.style.color = 'crimson';
-          msg.textContent = data.message || 'Registration failed';
+          msg.textContent = 'An error occurred. Please try again.';
         }
       } catch (err) {
+        console.error('Registration error:', err);
         msg.style.color = 'crimson';
-        msg.textContent = 'Network error';
+        msg.textContent = 'Network error. Please check your connection.';
       }
     });
   </script>

@@ -9,6 +9,7 @@
 <body>
   <h1>News Dashboard</h1>
   <div id="userInfo" class="user-info"></div>
+  <br>
   <section>
     <h2>Create News</h2>
     <form id="createForm">
@@ -24,7 +25,26 @@
 
   <section>
     <h2>Latest News</h2>
+    
+    <!-- Search Bar -->
+    <div style="margin-bottom: 20px; display: flex; gap: 10px;">
+      <input 
+        id="searchInput" 
+        type="text" 
+        placeholder="Search by title..." 
+        style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
+      />
+      <button id="clearSearchBtn" class="btn-secondary" style="padding: 10px 15px;">Clear</button>
+    </div>
+    
     <div id="list">Loading...</div> <!-- News list will be populated here -->
+    
+    <!-- Pagination Controls -->
+    <div id="pagination" class="pagination" style="display:none;margin-top:20px;text-align:center">
+      <button id="prevBtn" class="btn-secondary" style="margin-right:10px">← Previous</button>
+      <span id="pageInfo" style="margin:0 10px">Page 1</span>
+      <button id="nextBtn" class="btn-secondary" style="margin-left:10px">Next →</button>
+    </div>
   </section>
 
   <p><button id="logout" class="btn-primary">Logout</button></p>
@@ -40,6 +60,11 @@
     // State
     let currentUserId = null;
     let editingNewsId = null;
+    let currentPage = 1;
+    let itemsPerPage = 3;
+    let totalItems = 0;
+    let allNews = []; // Store all news for search
+    let searchQuery = ''; // Current search term
 
     // Show message under create form
     function showMessage(msg, type = 'info') {
@@ -49,18 +74,43 @@
 
     function clearMessage() { createMsg.textContent = ''; }
 
+    // Input validation
+    function validateNews(title, content) {
+      title = title.trim();
+      content = content.trim();
+      
+      // Check if fields are empty
+      if (!title) return { valid: false, error: 'Title is required' };
+      // Enforce minimum title length
+      if (title.length < 3) return { valid: false, error: 'Title must be at least 3 characters' };
+      // Enforce maximum title length to prevent abuse
+      if (title.length > 200) return { valid: false, error: 'Title cannot exceed 200 characters' };
+      
+      if (!content) return { valid: false, error: 'Content is required' };
+      // Enforce minimum content length
+      if (content.length < 5) return { valid: false, error: 'Content must be at least 5 characters' };
+      // Enforce maximum content length
+      if (content.length > 5000) return { valid: false, error: 'Content cannot exceed 5000 characters' };
+      
+      return { valid: true, title, content };
+    }
+
     async function checkAuth() {
       try {
+        // Check with backend if user is authenticated
         const res = await fetch('/Basic-Website/campus-hub/backend/auth/check.php', {
           method: 'GET',
           credentials: 'include' // Send cookies for session auth
         });
         const data = await res.json();
+        
+        // Not authenticated - redirect to login
         if (!res.ok || !data.authenticated) {
           window.location.href = '/Basic-Website/campus-hub/frontend/login.html';
           return false;
         }
-        // Set current user info for UI
+        
+        // Set current user info for UI and authorization checks
         currentUserId = data.user_id || null;
         const userInfoEl = document.getElementById('userInfo');
         if (userInfoEl) {
@@ -68,48 +118,124 @@
         }
         return true;
       } catch (err) {
+        // Network error - redirect to login as precaution
         window.location.href = '/Basic-Website/campus-hub/frontend/login.html';
         return false;
       }
     }
 
-    async function loadNews() {
+    async function loadNews(page = 1) {
+      currentPage = page;
+      const offset = (page - 1) * itemsPerPage;
       listEl.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading news...</p></div>';
+      
       try {
-        const res = await fetch('/Basic-Website/campus-hub/backend/api/news.php', {
+        // Always fetch all news for search functionality
+        const url = `/Basic-Website/campus-hub/backend/api/news.php?limit=1000&offset=0`;
+        const res = await fetch(url, {
           method: 'GET',
           credentials: 'include'
         });
+        
         const payload = await res.json();
+        
         if (!res.ok) {
-          listEl.textContent = payload.message || 'Failed to load';
-          console.error('Load news error:', payload);
+          if (res.status === 401) {
+            listEl.textContent = 'Session expired. Please login again.';
+            setTimeout(() => window.location.href = '/Basic-Website/campus-hub/frontend/login.html', 2000);
+          } else if (res.status === 404) {
+            listEl.textContent = 'No news found';
+          } else {
+            listEl.textContent = payload.message || 'Failed to load news. Please try again.';
+          }
+          console.error('Load news error:', res.status, payload);
           return;
         }
-        displayNews(payload.data || []);
+        
+        // Store all news for search
+        allNews = payload.data || [];
+        
+        // If searching, filter by search query
+        if (searchQuery) {
+          const filtered = allNews.filter(item => 
+            item.title.toLowerCase().includes(searchQuery)
+          );
+          totalItems = filtered.length;
+          displayNews(filtered.slice(0, itemsPerPage));
+        } else {
+          totalItems = payload.total || 0;
+          displayNews(allNews.slice(0, itemsPerPage));
+        }
+        
+        updatePaginationUI();
       } catch (err) {
-        listEl.textContent = 'Network error: ' + err.message;
         console.error('Network error:', err);
+        listEl.textContent = 'Network error. Please check your connection and try again.';
       }
     }
 
+    function updatePaginationUI() {
+      const totalPages = Math.ceil(totalItems / itemsPerPage);
+      const paginationEl = document.getElementById('pagination');
+      const pageInfo = document.getElementById('pageInfo');
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      
+      if (totalItems === 0) {
+        paginationEl.style.display = 'none';
+        return;
+      }
+      
+      paginationEl.style.display = 'block';
+      pageInfo.textContent = `Page ${currentPage} of ${totalPages} | ${totalItems} News in total`;
+      prevBtn.disabled = currentPage === 1;
+      nextBtn.disabled = currentPage >= totalPages;
+    }
+    // Search and filter news by title (case-insensitive)
+    function searchNews(query) {
+      searchQuery = query.toLowerCase().trim();
+      currentPage = 1; // Reset to first page on new search
+      
+      if (!searchQuery) {
+        totalItems = allNews.length;
+        displayNews(allNews.slice(0, itemsPerPage));
+      } else {
+        // Filter news by title containing search query
+        const filtered = allNews.filter(item => 
+          item.title.toLowerCase().includes(searchQuery)
+        );
+        totalItems = filtered.length;
+        displayNews(filtered.slice(0, itemsPerPage));
+      }
+      
+      updatePaginationUI();
+    }
     function displayNews(items) {
+      // Handle empty results
       if (!items || items.length === 0) {
         listEl.innerHTML = '<p class="loading">No news yet.</p>';
         return;
       }
+      
+      // Clear previous news
       listEl.innerHTML = '';
+      
+      // Loop through each news item and create HTML elements
       items.forEach(item => {
         const art = document.createElement('article');
+        
+        // Only show Edit/Delete buttons if user is the author
         let actions = '';
         if (currentUserId && Number(item.author_id) === Number(currentUserId)) {
           actions = `<div class="article-actions"><button class="btn-secondary" data-id="${item.id}" data-action="edit">Edit</button><button class="btn-danger" data-id="${item.id}" data-action="delete">Delete</button></div>`;
         }
+        
+        // Escape HTML to prevent XSS attacks
         art.innerHTML = `<h3>${escapeHtml(item.title)}</h3><small>By ${escapeHtml(item.author_email)} — ${escapeHtml(item.created_at)}</small><p>${escapeHtml(item.content)}</p>${actions}`;
         listEl.appendChild(art);
       });
 
-      // Attach action handlers
+      // Attach event listeners to dynamically created edit/delete buttons
       listEl.querySelectorAll('button[data-action="edit"]').forEach(btn => {
         btn.addEventListener('click', () => {
           const id = btn.getAttribute('data-id');
@@ -119,6 +245,8 @@
           editNews(id, title, content);
         });
       });
+      
+      // Attach delete handlers
       listEl.querySelectorAll('button[data-action="delete"]').forEach(btn => {
         btn.addEventListener('click', () => {
           const id = btn.getAttribute('data-id');
@@ -128,21 +256,34 @@
     }
 
     async function deleteNews(id) {
-      if (!confirm('Delete this news?')) return;
+      if (!confirm('Delete this news? This action cannot be undone.')) return;
+      
       try {
+        showMessage('Deleting...', 'info');
         const res = await fetch('/Basic-Website/campus-hub/backend/api/news.php?id=' + encodeURIComponent(id), {
           method: 'DELETE',
           credentials: 'include'
         });
         const data = await res.json();
+        
         if (res.ok) {
-          showMessage('Deleted', 'success');
+          showMessage('News deleted successfully', 'success');
+          loadNews();
+        } else if (res.status === 401) {
+          showMessage('Session expired. Please login again.', 'error');
+          setTimeout(() => window.location.href = '/Basic-Website/campus-hub/frontend/login.html', 1500);
+        } else if (res.status === 403) {
+          showMessage('You can only delete your own news.', 'error');
+          loadNews();
+        } else if (res.status === 404) {
+          showMessage('News not found or already deleted.', 'error');
           loadNews();
         } else {
-          showMessage(data.message || 'Delete failed', 'error');
+          showMessage(data.message || 'Failed to delete', 'error');
         }
       } catch (err) {
-        showMessage('Network error: ' + err.message, 'error');
+        console.error('Delete error:', err);
+        showMessage('Network error. Could not delete news.', 'error');
       }
     }
 
@@ -164,38 +305,104 @@
 
     document.getElementById('cancelEdit').addEventListener('click', cancelEdit);
 
+    // Pagination controls
+    document.getElementById('prevBtn').addEventListener('click', () => {
+      if (currentPage > 1) {
+        const filtered = searchQuery 
+          ? allNews.filter(item => item.title.toLowerCase().includes(searchQuery))
+          : allNews;
+        const startIdx = (currentPage - 2) * itemsPerPage;
+        displayNews(filtered.slice(startIdx, startIdx + itemsPerPage));
+        currentPage--;
+        updatePaginationUI();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+
+    document.getElementById('nextBtn').addEventListener('click', () => {
+      const filtered = searchQuery 
+        ? allNews.filter(item => item.title.toLowerCase().includes(searchQuery))
+        : allNews;
+      const totalPages = Math.ceil(filtered.length / itemsPerPage);
+      if (currentPage < totalPages) {
+        const startIdx = currentPage * itemsPerPage;
+        displayNews(filtered.slice(startIdx, startIdx + itemsPerPage));
+        currentPage++;
+        updatePaginationUI();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+
+    // Search functionality
+    const searchInput = document.getElementById('searchInput');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    
+    // Real-time search as user types
+    searchInput.addEventListener('input', (e) => {
+      searchNews(e.target.value);
+    });
+    
+    // Clear search button
+    clearSearchBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      searchNews('');
+    });
+
     createForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       clearMessage();
-      const fd = new FormData(createForm);
-      const payload = Object.fromEntries(fd.entries());
+      
       try {
+        const fd = new FormData(createForm);
+        const title = fd.get('title');
+        const content = fd.get('content');
+        
+        // Validate input
+        const validation = validateNews(title, content);
+        if (!validation.valid) {
+          showMessage(validation.error, 'error');
+          return;
+        }
+        
+        const payload = {
+          title: validation.title,
+          content: validation.content
+        };
+        
         let url = '/Basic-Website/campus-hub/backend/api/news.php';
         let method = 'POST';
         if (editingNewsId) {
           url += '?id=' + encodeURIComponent(editingNewsId);
           method = 'PUT';
         }
+        
         const res = await fetch(url, {
           method,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
           credentials: 'include'
         });
+        
         const data = await res.json();
+        
         if (res.ok) {
-          showMessage(data.message || (editingNewsId ? 'Updated' : 'Created'), 'success');
+          showMessage(data.message || (editingNewsId ? 'Updated successfully' : 'Published successfully'), 'success');
           createForm.reset();
           cancelEdit();
           loadNews();
+        } else if (res.status === 401) {
+          showMessage('Session expired. Please login again.', 'error');
+          setTimeout(() => window.location.href = '/Basic-Website/campus-hub/frontend/login.html', 1500);
+        } else if (res.status === 403) {
+          showMessage('You do not have permission to perform this action.', 'error');
+        } else if (res.status === 400) {
+          showMessage(data.message || 'Invalid input', 'error');
         } else {
-          showMessage(data.message || 'Failed', 'error');
-          if (res.status === 401) {
-            setTimeout(() => window.location.href = '/Basic-Website/campus-hub/frontend/login.html', 400);
-          }
+          showMessage(data.message || 'An error occurred. Please try again.', 'error');
         }
       } catch (err) {
-        showMessage('Network error', 'error');
+        console.error('Form submission error:', err);
+        showMessage('Network error. Please check your connection.', 'error');
       }
     });
 
@@ -207,6 +414,9 @@
     });
 
     function escapeHtml(str) {
+      // Prevent XSS attacks by converting HTML entities
+      // Examples: < becomes &lt;, > becomes &gt;
+      // This ensures user input is displayed as text, not executable code
       return String(str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
